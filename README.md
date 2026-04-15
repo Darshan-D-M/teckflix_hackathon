@@ -65,8 +65,28 @@ Submissions will be reviewed on:
 
 ## What it does
 - Solves one specific problem: route safety and delay prediction for urban commuters.
-- Uses simulated live signals to generate an immediate recommendation.
+- Uses live Google Maps data (when configured) or simulated signals to generate an immediate recommendation.
 - Provides actionable output and a Google Maps handoff in seconds.
+
+## Google Services Integration
+
+SafeRoute Pulse leverages Google's ecosystem for real-world accuracy:
+
+### Enabled Features
+- **Google Maps Directions API** — Fetch real travel times, distances, and routes instead of simulating data
+- **Google Maps Places API** — Autocomplete origin/destination with precise geographical coordinates
+- **Google Sheets API** — Log all commute analyses for analytics and pattern tracking (backend proxy required)
+
+### Setup
+See [GOOGLE_SERVICES_SETUP.md](GOOGLE_SERVICES_SETUP.md) for complete configuration instructions.
+
+**Quick Start:**
+1. Enable APIs in your Google Cloud project (`thematic-ruler-493404-h6`)
+2. Create an API key for Maps Directions API
+3. Update `GOOGLE_CONFIG.apiKey` in `app.js`
+4. (Optional) Set up Google Sheets logging with a backend proxy
+
+Without API keys, the app gracefully falls back to simulated data while maintaining full functionality.
 
 ## Run
 Open `index.html` in a browser.

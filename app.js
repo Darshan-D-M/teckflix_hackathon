@@ -28,6 +28,15 @@ const state = {
   lastSnapshot: null,
   originPlace: null,
   destinationPlace: null,
+  directionsService: null,
+  sheetsLogId: null, // Google Sheet ID for logging commute data
+};
+
+// Google API Configuration
+const GOOGLE_CONFIG = {
+  apiKey: "YOUR_GOOGLE_MAPS_API_KEY", // Add your API key here
+  sheetId: "YOUR_GOOGLE_SHEET_ID", // Add your Sheet ID for logging
+  projectId: "thematic-ruler-493404-h6", // Your Google Cloud project
 };
 
 const riskProfiles = {
@@ -79,19 +88,114 @@ function getWeightMultiplier() {
   }
 }
 
-function buildSnapshot() {
+// Google Directions API Integration
+async function fetchDirectionsData(origin, destination, mode) {
+  if (!state.originPlace?.lat || !state.destinationPlace?.lat) {
+    return null;
+  }
+
+  try {
+    const travelMode = {
+      metro: "TRANSIT",
+      bus: "TRANSIT",
+      ridehail: "DRIVING",
+      bike: "BICYCLING",
+    }[mode];
+
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/directions/json?` +
+        `origin=${state.originPlace.lat},${state.originPlace.lng}` +
+        `&destination=${state.destinationPlace.lat},${state.destinationPlace.lng}` +
+        `&mode=${travelMode}` +
+        `&key=${GOOGLE_CONFIG.apiKey}`
+    );
+
+    const data = await response.json();
+
+    if (data.routes && data.routes.length > 0) {
+      const route = data.routes[0];
+      const leg = route.legs[0];
+
+      return {
+        distance: leg.distance.value, // meters
+        duration: Math.ceil(leg.duration.value / 60), // minutes
+        polyline: route.overview_polyline.points,
+      };
+    }
+  } catch (error) {
+    console.error("Directions API Error:", error);
+  }
+
+  return null;
+}
+
+// Google Sheets Logging Integration
+async function logCommuteToSheets(snapshot) {
+  if (!GOOGLE_CONFIG.sheetId) {
+    return; // Sheets logging not configured
+  }
+
+  try {
+    const timestamp = new Date().toISOString();
+    const rowData = [
+      timestamp,
+      snapshot.origin,
+      snapshot.destination,
+      snapshot.mode,
+      Math.round(snapshot.score),
+      snapshot.safetyBand,
+      snapshot.delay,
+      snapshot.totalTime,
+      state.focus, // preference: safety, speed, cost
+    ];
+
+    // Log via Google Sheets API Apps Script endpoint (backend proxy)
+    await fetch("/api/log-commute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sheetId: GOOGLE_CONFIG.sheetId,
+        values: [rowData],
+      }),
+    }).catch(() => {
+      // Silently fail if backend not available
+    });
+  } catch (error) {
+    console.error("Sheets logging error:", error);
+  }
+}
+
+async function buildSnapshot() {
   const mode = DOM.travelMode.value;
   const profile = riskProfiles[mode];
   const departureIndex = DOM.departureWindow.selectedIndex;
   const departureBias = [0, 3, 6, 10][departureIndex];
   const windowNoise = randomInt(-4, 6);
   const timeOfDayPenalty = new Date().getHours() >= 18 ? 8 : 0;
+
+  // Try to fetch real directions data from Google Maps API
+  let realData = null;
+  if (state.originPlace && state.destinationPlace) {
+    realData = await fetchDirectionsData(DOM.origin.value, DOM.destination.value, mode);
+  }
+
+  // Calculate delay: use real data if available, otherwise use profile-based estimate
+  let delay;
+  if (realData && realData.duration) {
+    // Real data: adjust by departure time
+    delay = clamp(realData.duration / profile.baseTime * 12 + departureBias + randomInt(-3, 5), 2, 32);
+  } else {
+    // Simulated: use profile-based estimation
+    delay = clamp(profile.delay + departureBias + randomInt(-3, 5), 2, 32);
+  }
+
+  // Safety score calculation
   const score = clamp(
     profile.baseScore - departureBias - timeOfDayPenalty + windowNoise + getWeightMultiplier(),
     32,
     96,
   );
-  const delay = clamp(profile.delay + departureBias + randomInt(-3, 5), 2, 32);
+
   const crowding = clamp(profile.crowding + Math.round(departureBias / 6) + randomInt(0, 1), 1, 5);
   const lighting = clamp(5 - profile.lighting + randomInt(-1, 1), 1, 5);
   const reliability = clamp(5 - profile.reliability + randomInt(-1, 1), 1, 5);
@@ -105,6 +209,9 @@ function buildSnapshot() {
   const origin = state.originPlace?.name || DOM.origin.value.trim() || "Current location";
   const destination = state.destinationPlace?.name || DOM.destination.value.trim() || "Chosen destination";
 
+  // Use real total time if available
+  const totalTime = realData && realData.duration ? realData.duration : profile.baseTime + delay;
+
   return {
     origin,
     destination,
@@ -115,7 +222,7 @@ function buildSnapshot() {
     mode,
     score,
     delay,
-    totalTime: profile.baseTime + delay,
+    totalTime,
     crowdingBand,
     lightingBand,
     transitBand,
@@ -268,6 +375,9 @@ function updateSnapshot() {
   const snapshot = buildSnapshot();
   state.lastSnapshot = snapshot;
   renderSnapshot(snapshot);
+  
+  // Log to Google Sheets
+  logCommuteToSheets(snapshot);
 }
 
 function syncDestinationPair() {
@@ -370,10 +480,10 @@ function startAutoRefresh() {
   }, 7000);
 }
 
-DOM.runAnalysis.addEventListener("click", updateSnapshot);
-DOM.refreshData.addEventListener("click", updateSnapshot);
+DOM.runAnalysis.addEventListener("click", () => updateSnapshot());
+DOM.refreshData.addEventListener("click", () => updateSnapshot());
 [DOM.origin, DOM.destination, DOM.departureWindow, DOM.travelMode].forEach((element) => {
-  element.addEventListener("change", updateSnapshot);
+  element.addEventListener("change", () => updateSnapshot());
 });
 
 syncDestinationPair();
