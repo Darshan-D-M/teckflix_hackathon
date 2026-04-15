@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="SafeRoute Pulse - AI-powered urban mobility assistant for safer, faster commute decisions." />
+    <title>SafeRoute Pulse</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-left"></div>
+    <div class="ambient ambient-right"></div>
+
+    <main class="shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Smart Mobility Intelligence System</p>
+          <h1>Safer commute decisions in seconds.</h1>
+          <p class="lede">
+            SafeRoute Pulse predicts route risk, congestion, and delay for a single trip,
+            then turns live or simulated signals into an immediate action plan.
+          </p>
+
+          <div class="hero-actions">
+            <button class="primary" id="run-analysis">Analyze my commute</button>
+            <a class="secondary" id="google-maps-link" href="https://www.google.com/maps" target="_blank" rel="noreferrer">Open Google Maps</a>
+          </div>
+
+          <div class="status-strip">
+            <div>
+              <span>Refresh cadence</span>
+              <strong id="refresh-clock">--:--:--</strong>
+            </div>
+            <div>
+              <span>Data source</span>
+              <strong>Simulated city feed</strong>
+            </div>
+            <div>
+              <span>Action latency</span>
+              <strong>&lt; 2 sec</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-panel">
+          <div class="glass-card live-card">
+            <div class="card-header">
+              <div>
+                <p class="card-label">Live commute verdict</p>
+                <h2 id="route-title">Home to Downtown Hub</h2>
+              </div>
+              <span class="pill" id="risk-pill">Moderate risk</span>
+            </div>
+
+            <div class="score-ring">
+              <svg viewBox="0 0 180 180" aria-hidden="true">
+                <circle class="track" cx="90" cy="90" r="70"></circle>
+                <circle class="progress" id="score-ring" cx="90" cy="90" r="70"></circle>
+              </svg>
+              <div class="score-copy">
+                <strong id="safety-score">78</strong>
+                <span>Safety score</span>
+              </div>
+            </div>
+
+            <div class="verdict-grid">
+              <article>
+                <span>Predicted delay</span>
+                <strong id="delay-minutes">11 min</strong>
+              </article>
+              <article>
+                <span>Total time</span>
+                <strong id="total-time">39 min</strong>
+              </article>
+              <article>
+                <span>Crowding risk</span>
+                <strong id="crowding-risk">High</strong>
+              </article>
+              <article>
+                <span>Street lighting</span>
+                <strong id="lighting-score">Good</strong>
+              </article>
+              <article>
+                <span>Transit reliability</span>
+                <strong id="transit-score">Stable</strong>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="controls-grid">
+        <article class="glass-card form-card">
+          <div class="section-heading">
+            <p>Trip context</p>
+            <h3>Tell the assistant what matters</h3>
+          </div>
+
+          <div class="form-grid">
+            <label>
+              Origin
+              <input id="origin" type="text" value="Indiranagar" />
+            </label>
+            <label>
+              Destination
+              <input id="destination" type="text" value="MG Road Metro" />
+            </label>
+            <label>
+              Departure window
+              <select id="departure-window">
+                <option>Now</option>
+                <option>In 15 min</option>
+                <option>In 30 min</option>
+                <option>In 60 min</option>
+              </select>
+            </label>
+            <label>
+              Travel mode
+              <select id="travel-mode">
+                <option value="metro">Metro + walk</option>
+                <option value="bus">Bus + walk</option>
+                <option value="ridehail">Ride hail</option>
+                <option value="bike">Bike</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="preference-row">
+            <button class="chip active" data-weight="safety">Safety first</button>
+            <button class="chip" data-weight="speed">Fastest</button>
+            <button class="chip" data-weight="cost">Lowest cost</button>
+          </div>
+
+          <div class="microcopy">
+            The model blends commute time, signal density, and neighborhood safety to recommend a route.
+          </div>
+        </article>
+
+        <article class="glass-card insight-card">
+          <div class="section-heading">
+            <p>Actionable insight</p>
+            <h3>What to do right now</h3>
+          </div>
+
+          <div class="recommendation" id="recommendation">
+            Take the metro path via the east entrance. Leave 9 minutes earlier than planned and avoid the western footpath after 7 PM.
+          </div>
+
+          <div class="bullet-list" id="actions-list">
+            <div class="bullet">Use metro platform 2 to reduce street exposure by 18%.</div>
+            <div class="bullet">Expect a 6-minute delay if you depart in the next 15 minutes.</div>
+            <div class="bullet">Open the Google Maps route for live turn-by-turn guidance.</div>
+          </div>
+
+          <div class="cta-row">
+            <a id="maps-route" class="maps-button" href="https://www.google.com/maps/dir/Indiranagar/MG+Road+Metro" target="_blank" rel="noreferrer">View route in Google Maps</a>
+            <button class="ghost-button" id="refresh-data">Refresh signal feed</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="analytics-grid">
+        <article class="glass-card chart-card">
+          <div class="section-heading">
+            <p>Signal trend</p>
+            <h3>City conditions over the next hour</h3>
+          </div>
+          <div class="chart" id="trend-chart"></div>
+        </article>
+
+        <article class="glass-card events-card">
+          <div class="section-heading">
+            <p>Why this changed</p>
+            <h3>Recent live signals</h3>
+          </div>
+          <div class="event-stream" id="event-stream"></div>
+        </article>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
