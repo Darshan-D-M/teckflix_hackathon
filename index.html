@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-autocomplete/1.4.10/jquery.autocomplete.css" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -102,11 +103,11 @@
           <div class="form-grid">
             <label>
               Origin
-              <input id="origin" type="text" value="Indiranagar" />
+              <input id="origin" type="text" value="San Francisco" />
             </label>
             <label>
               Destination
-              <input id="destination" type="text" value="MG Road Metro" />
+              <input id="destination" type="text" value="Los Angeles" />
             </label>
             <label>
               Departure window
@@ -156,7 +157,7 @@
           </div>
 
           <div class="cta-row">
-            <a id="maps-route" class="maps-button" href="https://www.google.com/maps/dir/Indiranagar/MG+Road+Metro" target="_blank" rel="noreferrer">View route in Google Maps</a>
+            <a id="maps-route" class="maps-button" href="https://www.google.com/maps/dir/San+Francisco/Los+Angeles" target="_blank" rel="noreferrer">View route in Google Maps</a>
             <button class="ghost-button" id="refresh-data">Refresh signal feed</button>
           </div>
         </article>
@@ -181,6 +182,10 @@
       </section>
     </main>
 
+    <!-- Google Maps API for Places autocomplete -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB_H-t5pJ8jX_Pj2ZqZG_5P8zXqQqKJ5dU&libraries=places"></script>
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-autocomplete/1.4.10/jquery.autocomplete.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
