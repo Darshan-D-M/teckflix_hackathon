@@ -26,6 +26,8 @@ const DOM = {
 const state = {
   focus: "safety",
   lastSnapshot: null,
+  originPlace: null,
+  destinationPlace: null,
 };
 
 const riskProfiles = {
@@ -47,11 +49,11 @@ const neighborhoodSignals = [
 ];
 
 const routeNamePairs = [
-  ["Indiranagar", "MG Road Metro"],
-  ["Whitefield", "Kadubeesanahalli"],
-  ["Koramangala", "Majestic Hub"],
-  ["Silk Board", "Hebbal"],
-  ["Banaswadi", "Manyata Tech Park"],
+  ["San Francisco", "Los Angeles"],
+  ["New York", "Boston"],
+  ["Seattle", "Portland"],
+  ["Chicago", "Milwaukee"],
+  ["Austin", "Houston"],
 ];
 
 function clamp(value, min, max) {
@@ -99,9 +101,17 @@ function buildSnapshot() {
   const lightingBand = lighting >= 4 ? "Excellent" : lighting >= 3 ? "Good" : "Patchy";
   const transitBand = reliability >= 4 ? "Reliable" : reliability >= 3 ? "Stable" : "Unstable";
 
+  // Use accurate location data from Google Places or fallback to defaults
+  const origin = state.originPlace?.name || DOM.origin.value.trim() || "Current location";
+  const destination = state.destinationPlace?.name || DOM.destination.value.trim() || "Chosen destination";
+
   return {
-    origin: DOM.origin.value.trim() || "Current location",
-    destination: DOM.destination.value.trim() || "Chosen destination",
+    origin,
+    destination,
+    originLat: state.originPlace?.lat,
+    originLng: state.originPlace?.lng,
+    destinationLat: state.destinationPlace?.lat,
+    destinationLng: state.destinationPlace?.lng,
     mode,
     score,
     delay,
@@ -243,7 +253,13 @@ function renderSnapshot(snapshot) {
   renderEvents(snapshot.events);
   renderActions(snapshot.actions);
 
-  const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(snapshot.origin)}&destination=${encodeURIComponent(snapshot.destination)}&travelmode=${snapshot.mode === "ridehail" ? "driving" : snapshot.mode === "bike" ? "bicycling" : "transit"}`;
+  // Build accurate Google Maps URL with coordinates if available
+  let mapsUrl;
+  if (snapshot.originLat && snapshot.originLng && snapshot.destinationLat && snapshot.destinationLng) {
+    mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${snapshot.originLat},${snapshot.originLng}&destination=${snapshot.destinationLat},${snapshot.destinationLng}&travelmode=${snapshot.mode === "ridehail" ? "driving" : snapshot.mode === "bike" ? "bicycling" : "transit"}`;
+  } else {
+    mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(snapshot.origin)}&destination=${encodeURIComponent(snapshot.destination)}&travelmode=${snapshot.mode === "ridehail" ? "driving" : snapshot.mode === "bike" ? "bicycling" : "transit"}`;
+  }
   DOM.mapsRoute.href = mapsUrl;
   DOM.googleMapsLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(snapshot.destination)}`;
 }
@@ -256,20 +272,90 @@ function updateSnapshot() {
 
 function syncDestinationPair() {
   const pair = routeNamePairs[randomInt(0, routeNamePairs.length - 1)];
-  if (!DOM.origin.value || DOM.origin.value === "Indiranagar") {
+  if (!DOM.origin.value || DOM.origin.value === "San Francisco") {
     DOM.origin.value = pair[0];
   }
-  if (!DOM.destination.value || DOM.destination.value === "MG Road Metro") {
+  if (!DOM.destination.value || DOM.destination.value === "Los Angeles") {
     DOM.destination.value = pair[1];
   }
 }
 
+function initializeGooglePlacesAutocomplete() {
+  const service = new google.maps.places.AutocompleteService();
+  const sessionToken = new google.maps.places.AutocompleteSessionToken();
+
+  function setupAutocomplete(inputElement, placeStateKey) {
+    // Fetch place predictions
+    $(inputElement).autocomplete({
+      source: function (request, response) {
+        service.getPlacePredictions(
+          {
+            input: request.term,
+            sessionToken: sessionToken,
+            types: ["geocode"], // Include all address types
+          },
+          (predictions, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+              response(
+                predictions.map((prediction) => ({
+                  label: prediction.description,
+                  value: prediction.description,
+                  placeId: prediction.place_id,
+                })),
+              );
+            } else {
+              response([]);
+            }
+          },
+        );
+      },
+      select: function (event, ui) {
+        const placeService = new google.maps.places.PlacesService(document.createElement("div"));
+        placeService.getDetails(
+          { placeId: ui.item.placeId, sessionToken: sessionToken, fields: ["geometry", "formatted_address", "name"] },
+          (place, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK && place && place.geometry && place.geometry.location) {
+              const placeData = {
+                name: place.formatted_address || place.name || ui.item.value,
+                lat: place.geometry.location.lat(),
+                lng: place.geometry.location.lng(),
+              };
+              
+              if (placeStateKey === "origin") {
+                state.originPlace = placeData;
+              } else {
+                state.destinationPlace = placeData;
+              }
+              
+              updateSnapshot();
+            }
+          },
+        );
+        return false;
+      },
+      minLength: 3,
+    });
+  }
+
+  setupAutocomplete("#origin", "origin");
+  setupAutocomplete("#destination", "destination");
+}
+
 function bindChips() {
   document.querySelectorAll(".chip").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      document.querySelectorAll(".chip").forEach((button) => button.classList.remove("active"));
-      chip.classList.add("active");
-      state.focus = chip.dataset.weight;
+    chip.addEventListener("click", function(event) {
+      event.preventDefault();
+      
+      // Remove active class from all chips
+      document.querySelectorAll(".chip").forEach((c) => {
+        c.classList.remove("active");
+      });
+      
+      // Add active class to clicked chip
+      this.classList.add("active");
+      
+      // Update state and refresh
+      state.focus = this.dataset.weight;
       updateSnapshot();
     });
   });
@@ -291,6 +377,7 @@ DOM.refreshData.addEventListener("click", updateSnapshot);
 });
 
 syncDestinationPair();
+initializeGooglePlacesAutocomplete();
 bindChips();
 updateSnapshot();
 startAutoRefresh();
